@@ -10,7 +10,6 @@
 #define DISK_SIZE 10  * 1048576
 #define BLOCK_SIZE 4096
 
-FILE* disk;
 typedef enum {FREE = 0, BUSY, RESERVED, DIR, BAD} status;
 typedef enum { false, true } bool;
 
@@ -18,7 +17,6 @@ typedef struct{
     unsigned int disk_size;
     unsigned int block_size;
     unsigned int blocks;
-    unsigned int free_blocks;
     unsigned int root_dir;
 } SuperBlock;
 
@@ -39,7 +37,7 @@ Block* FAT;
  
 void startFileSystem(){
 
-    disk = fopen(DISK_NAME, "wb+");
+    FILE* disk = fopen(DISK_NAME, "wb+");
 
     unsigned char zero = 0;
 
@@ -48,7 +46,6 @@ void startFileSystem(){
     disk_info->disk_size = DISK_SIZE;
     disk_info->block_size = BLOCK_SIZE;
     disk_info->blocks = (disk_info->disk_size - sizeof(disk_info))/BLOCK_SIZE;
-    disk_info->free_blocks = disk_info->blocks;
 
     for (int i = 0; i < (disk_info->disk_size); i++){
         fwrite(&zero, sizeof(zero), 1, disk);
@@ -139,7 +136,7 @@ void printDir(Block current_dir){
 }
 
 
-void writeDisk(char* file_name){
+void writeInDisk(char* file_name){
     FILE* read_ptr = fopen(file_name,"rb");
     FILE* write_ptr = fopen(DISK_NAME,"wb");
     int stack[10];
@@ -163,7 +160,7 @@ void writeDisk(char* file_name){
             FAT[block_index].first = true;
             FAT[block_index].items = 1;
 
-            printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
+            // printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
 
             if(loop_size_aux <0){
                 FAT[block_index].size = file_size;
@@ -173,7 +170,7 @@ void writeDisk(char* file_name){
                     fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                     fwrite(buff,FAT[block_index].size,1,write_ptr);
 
-                printf("E tamanho: %d\n",FAT[block_index].size);
+                // printf("E tamanho: %d\n",FAT[block_index].size);
                 break;
             }
             else{
@@ -188,14 +185,14 @@ void writeDisk(char* file_name){
                     fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                     fwrite(buffa,FAT[block_index].size,1,write_ptr);
 
-                printf("E tamanho: %d\n",FAT[block_index].size);
-                printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
-                printf("BUFFER\n");
-                for (int i = 0; i < FAT[block_index].size ; i++)
-                {
-                    printf("%c",buffa[i]);
-                }
-                printf("\n");
+                // printf("E tamanho: %d\n",FAT[block_index].size);
+                // printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
+                // printf("BUFFER\n");
+                // for (int i = 0; i < FAT[block_index].size ; i++)
+                // {
+                //     printf("%c",buffa[i]);
+                // }
+                // printf("\n");
             }
         }
         else if(loop_size_aux > 0 && nblocks > 0){
@@ -217,15 +214,15 @@ void writeDisk(char* file_name){
                 fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                 fwrite(buffb,FAT[block_index].size,1,write_ptr);
 
-            printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
-            printf("E tamanho: %d\n",FAT[block_index].size);
-            printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
-            printf("BUFFER\n");
-            for (int i = 0; i < FAT[block_index].size ; i++)
-            {
-                printf("%c",buffb[i]);
-            }
-            printf("\n");
+            // printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
+            // printf("E tamanho: %d\n",FAT[block_index].size);
+            // printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
+            // printf("BUFFER\n");
+            // for (int i = 0; i < FAT[block_index].size ; i++)
+            // {
+            //     printf("%c",buffb[i]);
+            // }
+            // printf("\n");
             
         }
         else if(loop_size_aux < 0 && nblocks > 0){
@@ -243,14 +240,14 @@ void writeDisk(char* file_name){
                 fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                 fwrite(buffc,FAT[block_index].size,1,write_ptr);
 
-            printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
-            printf("E tamanho: %d\n",FAT[block_index].size);
-            printf("BUFFER\n");
-            for (int i = 0; i < FAT[block_index].size ; i++)
-            {
-                printf("%c",buffc[i]);
-            }
-            printf("\n");
+            // printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
+            // printf("E tamanho: %d\n",FAT[block_index].size);
+            // printf("BUFFER\n");
+            // for (int i = 0; i < FAT[block_index].size ; i++)
+            // {
+            //     printf("%c",buffc[i]);
+            // }
+            // printf("\n");
             break;
         }
 
@@ -261,7 +258,7 @@ void writeDisk(char* file_name){
     fclose(write_ptr);
 }
 
-void readDisk(char* file_name){
+void readFromDisk(char* file_name){
     FILE* read_ptr = fopen(DISK_NAME,"rb");
     FILE* teste = fopen("novoteste1.txt","wb");
  
@@ -278,61 +275,55 @@ void readDisk(char* file_name){
     while (1){
         index = pop(sp);
         if(index == -1) break;
-        printf("Indice: %d\n",index);
+        // printf("Indice: %d\n",index);
         
         fseek(read_ptr,FAT[index].begin,SEEK_SET);
-        printf("\n\nVOU LER: %ld\n\n",ftell(read_ptr));
+        // printf("\n\nVOU LER: %ld\n\n",ftell(read_ptr));
         char b[FAT[index].size];
 
         fread(b,1,FAT[index].size,read_ptr);
-        printf("\n\nLI: %ld\n\n",ftell(read_ptr));
+        // printf("\n\nLI: %ld\n\n",ftell(read_ptr));
 
-        for (int i = 0; i< FAT[index].size ; i++){
-            printf("%c",b[i]);
-        }
-        printf("\n");
+        // for (int i = 0; i< FAT[index].size ; i++){
+        //     printf("%c",b[i]);
+        // }
+        // printf("\n");
 
-        if(index!=31)
         fwrite(b,FAT[index].size,1,teste);
-        else
-        {   
-            fwrite(b,FAT[index].size,1,teste);
-            printf("Index: %d\n",index);
-            printf("BIndex: %d\n",FAT[index].size);
-
-        }
         
-
         if(FAT[index].next_block != -1){
             push(sp,FAT[index].next_block);
         }
         a+=FAT[index].size+1;
     }
-    printf("tamanho: %ld\n",ftell(teste));
+    // printf("tamanho: %ld\n",ftell(teste));
     fclose(read_ptr);
     fclose(teste);
     
 
 }
 
+bool mkdir(char* dir, char* new_dir){
+    
+}
+
 int main(){
 
     startFileSystem();
 
-    writeDisk("teste1.txt");
+    writeInDisk("teste1.txt");
     char str[] = "eae/oi/teste.txt";
-    printf("Dir: %d\n",getFile(str));
+    printf("Dir: %d\n",getFile("~"));
      for (int i = 0; i < disk_info->blocks; i++){
-        if(FAT[i].status == BUSY){
-            if(!strcmp("filetest.txt",FAT[i].name))
+        if(FAT[i].status == DIR){
+            if(!strcmp("~",FAT[i].name))
                 printf("Existo no bloco: %d\n",FAT[i].index);
         }
     }
     
-    readDisk("teste1.txt");
+    readFromDisk("teste1.txt");
     printf("Free: %d\n",getFreeBlock());
     
     return 0;
 }
-
 
