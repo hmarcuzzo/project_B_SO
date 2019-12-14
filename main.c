@@ -1,51 +1,338 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
+#define push(sp, n) (*((sp)++) = (n))
+#define pop(sp) (*--(sp))
 
-#define File_Name "disco.dsc"
-#define SIZE_OF_BLOCK 512
-#define NUMBER_OF_BLOCKS 4096
+#define DISK_NAME "disco.dsc"
+#define DISK_SIZE 10  * 1048576
+#define BLOCK_SIZE 4096
+
+FILE* disk;
+typedef enum {FREE = 0, BUSY, RESERVED, DIR, BAD} status;
+typedef enum { false, true } bool;
 
 typedef struct{
-    int blockSize;
-    int numberOfBlocks;
-    int numberOfiNodes;
-    int freeBlocks;
-    int freeiNodes; 
+    unsigned int disk_size;
+    unsigned int block_size;
+    unsigned int blocks;
+    unsigned int free_blocks;
+    unsigned int root_dir;
+} SuperBlock;
+
+SuperBlock* disk_info;
+
+typedef struct{
+    char* name;
+    unsigned int index;
+    unsigned int begin;
+    unsigned int size;
+    unsigned int items;
+    status status;
+    bool first;
+    unsigned int next_block;
+} Block;
+
+Block* FAT;
+ 
+void startFileSystem(){
+
+    disk = fopen(DISK_NAME, "wb+");
+
+    unsigned char zero = 0;
+
+    disk_info = malloc(sizeof(disk_info));
+
+    disk_info->disk_size = DISK_SIZE;
+    disk_info->block_size = BLOCK_SIZE;
+    disk_info->blocks = (disk_info->disk_size - sizeof(disk_info))/BLOCK_SIZE;
+    disk_info->free_blocks = disk_info->blocks;
+
+    for (int i = 0; i < (disk_info->disk_size); i++){
+        fwrite(&zero, sizeof(zero), 1, disk);
+    }
+
+    fseek(disk, 0, SEEK_SET);
+    fwrite(&disk_info, sizeof(SuperBlock), 1, disk);
+
+    FAT = malloc(disk_info->blocks*sizeof(Block));
     
-} superBlock;
+    for (int i = 0; i < disk_info->blocks; i++){
+        fwrite(&FAT[i], sizeof(FAT[i]), 1, disk);
+    }
+
+    int begin_byte = ftell(disk) +1;
+    for (int i = 0; i < disk_info->blocks ; i++){
+        FAT[i].status = FREE;
+        FAT[i].index = i;
+        FAT[i].begin = begin_byte;
+        FAT[i].next_block = -1;
+        FAT[i].items = 0;
+        begin_byte += (BLOCK_SIZE -1);        
+    }
 
 
-void startFileSystem(FILE* file){
+    float fblocks = (float)(disk_info->blocks*sizeof(Block))/BLOCK_SIZE ;
+    int blocks_for_fat = ceil(fblocks);
 
-    unsigned char zero = '0';
-
-    superBlock firstSuperBlock;
-
-    firstSuperBlock.blockSize = SIZE_OF_BLOCK;
-    firstSuperBlock.numberOfBlocks = NUMBER_OF_BLOCKS;
-    firstSuperBlock.numberOfiNodes = 0;
-
-
-    for (int i = 0; i < (SIZE_OF_BLOCK * NUMBER_OF_BLOCKS); i++){
-        fwrite(&zero, sizeof(zero), 1, file);
+    for (int i = 0; i < blocks_for_fat; i++){
+        FAT[i].status = RESERVED;
     }
     
+
+    FAT[blocks_for_fat].name = "~";
+    FAT[blocks_for_fat].status = DIR;
+    disk_info->root_dir = FAT[blocks_for_fat].begin; 
+    
+
+    fclose(disk);  
+}
+
+int getFreeBlock(){
+    for (int i = 0; i < disk_info->blocks; i++){
+        if(FAT[i].status == FREE) 
+            return i;
+    }
+    return -1;
 }
 
 
-void main(int argc, char* argv[]){
+int getFile(char* dir_path){
+    char* stack[100];
+    char** sp = stack;
+    char* token = strtok(dir_path, "/");
+    char* last_dir;
+    while( token != NULL ) {
+        push(sp,token);
 
-    FILE* file;
+    printf("%s\n",token);
+        token = strtok(NULL, "/");
+    }
+    last_dir = pop(sp);
+    printf("%s\n",last_dir);
+    for (int i = 0; i < disk_info->blocks; i++){
+        if((FAT[i].status == DIR || FAT[i].status == BUSY) && FAT[i].first){
+            if(!strcmp(last_dir,FAT[i].name))
+                return i;
+        }
+    }
+    return -1;
+}
 
-    file = fopen(File_Name, "rb");          // tenta ler o arquivo
-    if (file == 0){                         // se não existir cria o arquivo
-        file = fopen(File_Name, "wb");
-        startFileSystem(file);
+void printDir(Block current_dir){
+    if(current_dir.items == 0)
+        printf("Vazio\n");
+    else{
+        Block aux;
+        FILE* disk = fopen(DISK_NAME,"rb");
+        fseek(disk,current_dir.begin,SEEK_SET);
+        for (int i = 1; i <= current_dir.items; i++){
+            fread(&aux,sizeof(Block*),1,disk);
+            printf("%s\t",aux.name);
+            fseek(disk, current_dir.begin + (sizeof(Block*)*i) +1  ,SEEK_SET);
+        }
+        printf("\n");    
+        fclose(disk);
+    }
+}
+
+
+void writeDisk(char* file_name){
+    FILE* read_ptr = fopen(file_name,"rb");
+    FILE* write_ptr = fopen(DISK_NAME,"wb");
+    int stack[10];
+    int* sp = stack;
+
+    fseek(read_ptr, 0, SEEK_END);
+    unsigned int file_size = ftell(read_ptr);
+    fseek(read_ptr, 0, SEEK_SET);
+
+    long int loop_size_aux = file_size;
+    int nblocks = 0;
+    while(1){
+        loop_size_aux -= BLOCK_SIZE -1;
+
+        if(nblocks == 0){
+
+            int block_index = getFreeBlock();
+
+            FAT[block_index].status = BUSY;
+            FAT[block_index].name = file_name;
+            FAT[block_index].first = true;
+            FAT[block_index].items = 1;
+
+            printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
+
+            if(loop_size_aux <0){
+                FAT[block_index].size = file_size;
+
+                char buff[FAT[block_index].size];
+                    fread(&buff,FAT[block_index].size,1,read_ptr);
+                    fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
+                    fwrite(buff,FAT[block_index].size,1,write_ptr);
+
+                printf("E tamanho: %d\n",FAT[block_index].size);
+                break;
+            }
+            else{
+                FAT[block_index].size = BLOCK_SIZE -1;
+                FAT[block_index].next_block = getFreeBlock();
+
+                push(sp,FAT[block_index].next_block);
+                nblocks++;
+
+                char buffa[FAT[block_index].size];
+                    fread(&buffa,FAT[block_index].size,1,read_ptr);
+                    fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
+                    fwrite(buffa,FAT[block_index].size,1,write_ptr);
+
+                printf("E tamanho: %d\n",FAT[block_index].size);
+                printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
+                printf("BUFFER\n");
+                for (int i = 0; i < FAT[block_index].size ; i++)
+                {
+                    printf("%c",buffa[i]);
+                }
+                printf("\n");
+            }
+        }
+        else if(loop_size_aux > 0 && nblocks > 0){
+
+            int block_index = pop(sp);
+
+            FAT[block_index].status = BUSY;
+            FAT[block_index].name = file_name;
+            FAT[block_index].size = BLOCK_SIZE -1;
+            FAT[block_index].first = false;
+            FAT[block_index].items = 1;
+            FAT[block_index].next_block = getFreeBlock();
+
+            push(sp,FAT[block_index].next_block);
+            nblocks++;
+
+            char buffb[FAT[block_index].size];
+                fread(&buffb,FAT[block_index].size,1,read_ptr);
+                fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
+                fwrite(buffb,FAT[block_index].size,1,write_ptr);
+
+            printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
+            printf("E tamanho: %d\n",FAT[block_index].size);
+            printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
+            printf("BUFFER\n");
+            for (int i = 0; i < FAT[block_index].size ; i++)
+            {
+                printf("%c",buffb[i]);
+            }
+            printf("\n");
+            
+        }
+        else if(loop_size_aux < 0 && nblocks > 0){
+
+            int block_index = pop(sp);
+
+            FAT[block_index].status = BUSY;
+            FAT[block_index].name = file_name;
+            FAT[block_index].size = BLOCK_SIZE + loop_size_aux -1;
+            FAT[block_index].first = false;
+            FAT[block_index].items = 1;
+
+            char buffc[FAT[block_index].size];
+                fread(&buffc,FAT[block_index].size,1,read_ptr);
+                fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
+                fwrite(buffc,FAT[block_index].size,1,write_ptr);
+
+            printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
+            printf("E tamanho: %d\n",FAT[block_index].size);
+            printf("BUFFER\n");
+            for (int i = 0; i < FAT[block_index].size ; i++)
+            {
+                printf("%c",buffc[i]);
+            }
+            printf("\n");
+            break;
+        }
+
     }
 
+
+    fclose(read_ptr);
+    fclose(write_ptr);
+}
+
+void readDisk(char* file_name){
+    FILE* read_ptr = fopen(DISK_NAME,"rb");
+    FILE* teste = fopen("novoteste1.txt","wb");
+ 
+    int stack[10];
+    int* sp = stack;
+
+    int block_index = getFile(file_name);
+    char * aux;
+
+    push(sp,-1);
+    push(sp,FAT[block_index].index);
+    int index;
+    int a = 0;
+    while (1){
+        index = pop(sp);
+        if(index == -1) break;
+        printf("Indice: %d\n",index);
+        
+        fseek(read_ptr,FAT[index].begin,SEEK_SET);
+        printf("\n\nVOU LER: %ld\n\n",ftell(read_ptr));
+        char b[FAT[index].size];
+
+        fread(b,1,FAT[index].size,read_ptr);
+        printf("\n\nLI: %ld\n\n",ftell(read_ptr));
+
+        for (int i = 0; i< FAT[index].size ; i++){
+            printf("%c",b[i]);
+        }
+        printf("\n");
+
+        if(index!=31)
+        fwrite(b,FAT[index].size,1,teste);
+        else
+        {   
+            fwrite(b,FAT[index].size,1,teste);
+            printf("Index: %d\n",index);
+            printf("BIndex: %d\n",FAT[index].size);
+
+        }
+        
+
+        if(FAT[index].next_block != -1){
+            push(sp,FAT[index].next_block);
+        }
+        a+=FAT[index].size+1;
+    }
+    printf("tamanho: %ld\n",ftell(teste));
+    fclose(read_ptr);
+    fclose(teste);
     
 
-
 }
+
+int main(){
+
+    startFileSystem();
+
+    writeDisk("teste1.txt");
+    char str[] = "eae/oi/teste.txt";
+    printf("Dir: %d\n",getFile(str));
+     for (int i = 0; i < disk_info->blocks; i++){
+        if(FAT[i].status == BUSY){
+            if(!strcmp("filetest.txt",FAT[i].name))
+                printf("Existo no bloco: %d\n",FAT[i].index);
+        }
+    }
+    
+    readDisk("teste1.txt");
+    printf("Free: %d\n",getFreeBlock());
+    
+    return 0;
+}
+
+
