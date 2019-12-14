@@ -10,6 +10,9 @@
 #define DISK_SIZE 10  * 1048576
 #define BLOCK_SIZE 4096
 
+unsigned int actualDir[50];
+unsigned int adpCount = 0;
+
 typedef enum {FREE = 0, BUSY, RESERVED, DIR, BAD} status;
 typedef enum { false, true } bool;
 
@@ -60,8 +63,8 @@ void startFileSystem(){
         fwrite(&FAT[i], sizeof(FAT[i]), 1, disk);
     }
 
-    int begin_byte = ftell(disk) +1;
-    for (int i = 0; i < disk_info->blocks ; i++){
+    int begin_byte = ftell(disk) + 1;
+    for (int i = 0; i < disk_info->blocks; i++){
         FAT[i].status = FREE;
         FAT[i].index = i;
         FAT[i].begin = begin_byte;
@@ -82,6 +85,9 @@ void startFileSystem(){
     FAT[blocks_for_fat].name = "~";
     FAT[blocks_for_fat].status = DIR;
     disk_info->root_dir = FAT[blocks_for_fat].begin; 
+    
+    actualDir[adpCount] = blocks_for_fat;
+    adpCount++;
     
 
     fclose(disk);  
@@ -266,7 +272,6 @@ void readFromDisk(char* file_name){
     int* sp = stack;
 
     int block_index = getFile(file_name);
-    char * aux;
 
     push(sp,-1);
     push(sp,FAT[block_index].index);
@@ -307,6 +312,18 @@ bool mkdir(char* dir, char* new_dir){
     
 }
 
+void pwd(){
+
+    printf("/");
+    for (int i = 0; i <= (adpCount - 1); i++){
+        printf("%s", FAT[actualDir[i]].name);
+
+        if (i < (adpCount - 1))
+            printf("/");
+    }
+    printf("\n");
+}
+
 int main(){
 
     startFileSystem();
@@ -324,6 +341,7 @@ int main(){
     readFromDisk("teste1.txt");
     printf("Free: %d\n",getFreeBlock());
     
+    pwd();
     return 0;
 }
 
