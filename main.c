@@ -164,7 +164,7 @@ void printDir(Block current_dir){
 }
 
 
-void writeInDisk(char* file_name){
+void writeInDisk(char* file_name, int dir){
     FILE* read_ptr = fopen(file_name,"rb");
     FILE* write_ptr = fopen(DISK_NAME,"wb");
     int stack[10];
@@ -187,6 +187,8 @@ void writeInDisk(char* file_name){
             FAT[block_index].name = file_name;
             FAT[block_index].first = true;
             FAT[block_index].items = 1;
+            FAT[dir].pointers[FAT[dir].items] = FAT[block_index].index;
+            FAT[dir].items++;
 
             // printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
 
@@ -470,16 +472,58 @@ bool cd(char* str){
     
 
     for (int i = 0; i < aux_adp_count; i++){
-        printf("aux_actual_dir[i]: %d\n", aux_actual_dir[i]);
+        // printf("aux_actual_dir[i]: %d\n", aux_actual_dir[i]);
         actualDir[i] = aux_actual_dir[i];
     }
     adpCount = aux_adp_count;
     return true;
 }
 
-bool removeItem(char* str){
+bool removeItem(char* str, int dir){
 
+    bool isValid;
 
+    for (int j = 0; j < FAT[dir].items; j++){
+        int Pname = FAT[dir].pointers[j];
+        isValid = false;
+        
+        if (strcmp(str, FAT[Pname].name) == 0){
+            isValid = true;
+            FAT[dir].items--;
+            
+            if (FAT[Pname].status == RESERVED){
+                printf("Arquivo ou diretório reservado, não é possível de ser apagado!\n");
+                return false;
+            }  
+            else if (FAT[Pname].status == BUSY){
+                int auxPointer = Pname;
+                
+                do{
+                    FAT[auxPointer].status = FREE;
+                    auxPointer = FAT[auxPointer].next_block;
+                } while (auxPointer != -1);      
+            }
+            else if (FAT[Pname].status == DIR){
+                for (int i = 0; i < FAT[Pname].items; i++){
+                    /* code */
+                }
+                
+                
+            }
+            else
+                isValid == false;
+
+            break;
+        }
+        
+    }
+    
+    if (isValid == false){
+        printf("Arquivo ou diretório inexistente!\n");
+        return false;
+    }
+    else
+        return true;
 
 }
 
@@ -487,8 +531,8 @@ int main(){
 
     startFileSystem();
 
-    writeInDisk("teste1.txt");
-    char str[] = "eae/oi/teste.txt";
+    int dir = actualDir[0];
+    writeInDisk("teste1.txt", dir);
     printf("Dir: %d\n",getFile("~"));
      for (int i = 0; i < disk_info->blocks; i++){
         if(FAT[i].status == DIR){
