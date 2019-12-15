@@ -582,8 +582,13 @@ int main(){
     printf("Dir: %d\n", actualDir[adpCount - 1]);
     printDir(FAT[actualDir[adpCount - 1]]);
 
-    char strTeste[] = "/~/teste_01";
+    char strTeste[15] = "teste1.txt";
+    
+    removeItem(strTeste, actualDir[adpCount - 1]);
+    printDir(FAT[actualDir[adpCount - 1]]);
+    strcpy(strTeste, "/~/teste_01");
     cd(strTeste);
+
     pwd();
 
     return 0;
