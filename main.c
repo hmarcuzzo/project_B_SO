@@ -106,7 +106,6 @@ int getFreeBlock(){
     return -1;
 }
 
-
 int getFile(char* dir_path){
     char* stack[100];
     char** sp = stack;
@@ -395,7 +394,6 @@ void pwd(){
 }
 
 bool cd(char* str){
-    unsigned int aux = 0;
     int len = 0;
     char listToken[1000][1000];
     int flag = 0;
@@ -489,26 +487,26 @@ bool removeItem(char* str, int dir){
         
         if (strcmp(str, FAT[Pname].name) == 0){
             isValid = true;
-            FAT[dir].items--;
             
             if (FAT[Pname].status == RESERVED){
                 printf("Arquivo ou diretório reservado, não é possível de ser apagado!\n");
                 return false;
             }  
-            else if (FAT[Pname].status == BUSY){
+            else if (FAT[Pname].status == BUSY || FAT[Pname].status == DIR){
+
+                if (FAT[Pname].status == DIR){
+                    for (int i = 0; i < FAT[Pname].items; i++){
+                        removeItem(FAT[FAT[Pname].pointers[i]].name, Pname);
+                    }
+                }
+                
                 int auxPointer = Pname;
+                FAT[dir].pointers[j] = FAT[dir].pointers[FAT[dir].items - 1];
                 
                 do{
                     FAT[auxPointer].status = FREE;
                     auxPointer = FAT[auxPointer].next_block;
                 } while (auxPointer != -1);      
-            }
-            else if (FAT[Pname].status == DIR){
-                for (int i = 0; i < FAT[Pname].items; i++){
-                    /* code */
-                }
-                
-                
             }
             else
                 isValid == false;
@@ -522,16 +520,115 @@ bool removeItem(char* str, int dir){
         printf("Arquivo ou diretório inexistente!\n");
         return false;
     }
-    else
+    else{
+        FAT[dir].items--;
         return true;
+    }
 
+}
+
+bool copy(char* newDir, char* item){
+    int len = 0;
+    char listToken[1000][1000];
+    int flag = 0;
+
+    unsigned int aux_actual_dir[50];
+    unsigned int aux_adp_count = 0;
+
+    if (newDir[0] == '/'){
+        flag = 1;
+        aux_actual_dir[aux_adp_count] = actualDir[aux_adp_count];
+        aux_adp_count++;
+    }
+    else{
+        for (int i = 0; i < adpCount; i++){
+            aux_actual_dir[i] = actualDir[i];
+        }
+        aux_adp_count = adpCount;
+    }
+
+    char* token = strtok(newDir, "/");
+
+    while (token != NULL){
+        strcpy(listToken[len], token);
+        len++;
+
+        token = strtok(NULL, "/");
+    }
+
+    if (flag == 1){
+        if (strcmp(listToken[0], "~") != 0){
+            printf("Arquivo ou diretório de destino inexistente!\n");
+            return false;
+        } 
+    }
+
+    bool isValid;
+
+    for (int i = flag; i < len; i++){
+        if (strcmp(listToken[i], "..") == 0){
+            if(aux_adp_count > 1){
+                aux_adp_count--;
+            }
+        }
+        else{
+
+            isValid = false;
+            for (int j = 0; j < FAT[aux_actual_dir[aux_adp_count - 1]].items; j++){
+                int number = aux_actual_dir[aux_adp_count - 1];
+                int Pname = FAT[number].pointers[j];
+                
+                if (strcmp(listToken[i], FAT[Pname].name) == 0){
+                    aux_actual_dir[aux_adp_count] = FAT[Pname].index;
+                    aux_adp_count++;
+
+                    isValid = true;
+                    break;
+                }
+                
+            }
+            
+            if (isValid == false){
+                printf("Arquivo ou diretório de destino inexistente!\n");
+                return false;
+            }
+        } 
+    }
+
+
+    isValid = false;
+    for (int i = 0; i < FAT[actualDir[adpCount - 1]].items; i++){
+        int number = actualDir[adpCount - 1];
+        int Pname = FAT[number].pointers[i];
+        
+        if (strcmp(FAT[Pname].name, item) == 0){
+            FAT[aux_actual_dir[aux_adp_count - 1]].pointers[FAT[aux_actual_dir[aux_adp_count - 1]].items] = FAT[Pname].index;
+            
+        }
+         
+    }
+
+    if (isValid == false){
+        printf("Arquivo ou diretório de destino inexistente!\n");
+        return false;
+    }
+    
+    return true;
 }
 
 int main(){
 
+    char strTeste[15];
+
     startFileSystem();
 
-    int dir = actualDir[0];
+    printf("Index atual: %d\n", actualDir[adpCount - 1]);
+    mkdir("teste_01", NULL);
+
+    strcpy(strTeste, "/~/teste_01");
+    cd(strTeste);
+
+    int dir = actualDir[adpCount - 1];
     writeInDisk("teste1.txt", dir);
     printf("Dir: %d\n",getFile("~"));
      for (int i = 0; i < disk_info->blocks; i++){
@@ -573,21 +670,24 @@ int main(){
     // char stro[] = "dir/Arquivo 1";
     // printf("File: %d\n",getFile(oi));
 
-    printf("Index atual: %d\n", actualDir[adpCount - 1]);
-    mkdir("teste_01", NULL);
+    
 
     mkdir("teste_02", "~");
     mkdir("teste_03", "~");
 
     printf("Dir: %d\n", actualDir[adpCount - 1]);
+    pwd();
     printDir(FAT[actualDir[adpCount - 1]]);
 
-    char strTeste[15] = "teste1.txt";
-    
-    removeItem(strTeste, actualDir[adpCount - 1]);
+    strcpy(strTeste, "/~");
+    copy(strTeste, "teste1.txt");
+
+    cd("..");
     printDir(FAT[actualDir[adpCount - 1]]);
-    strcpy(strTeste, "/~/teste_01");
-    cd(strTeste);
+
+    // strcpy(strTeste, "teste_01");
+    // removeItem(strTeste, actualDir[adpCount - 1]);
+    // printDir(FAT[actualDir[adpCount - 1]]);
 
     pwd();
 
