@@ -10,7 +10,7 @@ int main(){
 
     startFileSystem();
 
-    printf("Index atual: %d\n", actualDir[adpCount - 1]);
+    // printf("Index atual: %d\n", actualDir[adpCount - 1]);
     mkdir("teste_01", NULL);
 
     strcpy(strTeste, "/~/teste_01");
@@ -37,10 +37,10 @@ int main(){
     // FAT[freedBlock].name = "Diretório 1";
     // printDir(FAT[freedBlock]);
 
-    FAT[33].status = BUSY;
-    FAT[33].name = "Arquivo 1";
-    FAT[33].first = true;
-    printf("Tamanho bloco: %ld\n",sizeof(FAT[33]));
+    // FAT[33].status = BUSY;
+    // FAT[33].name = "Arquivo 1";
+    // FAT[33].first = true;
+    // printf("Tamanho bloco: %ld\n",sizeof(FAT[33]));
 
     // FILE* write_ptr = fopen(DISK_NAME,"wb");
     // fseek(write_ptr,FAT[32].begin,SEEK_SET);
@@ -68,16 +68,29 @@ int main(){
     printDir(FAT[actualDir[adpCount - 1]]);
 
     strcpy(strTeste, "/~");
-    copy(strTeste, "teste1.txt");
+    move(strTeste, "teste1.txt");
+    printDir(FAT[actualDir[adpCount - 1]]);
 
+    
     cd("..");
+    printDir(FAT[actualDir[adpCount - 1]]);
+
+
+    strcpy(strTeste, "teste_01");
+    move(strTeste, "teste_02");
+
+
+    printDir(FAT[actualDir[adpCount - 1]]);
+
+
+    cd(strTeste);
     printDir(FAT[actualDir[adpCount - 1]]);
 
     // strcpy(strTeste, "teste_01");
     // removeItem(strTeste, actualDir[adpCount - 1]);
     // printDir(FAT[actualDir[adpCount - 1]]);
 
-    pwd();
+    // pwd();
 
     return 0;
 }

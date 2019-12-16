@@ -522,7 +522,7 @@ bool removeItem(char* str, int dir){
 
 }
 
-bool copy(char* newDir, char* item){
+bool move(char* newDir, char* item){
     int len = 0;
     char listToken[1000][1000];
     int flag = 0;
@@ -573,7 +573,7 @@ bool copy(char* newDir, char* item){
                 int number = aux_actual_dir[aux_adp_count - 1];
                 int Pname = FAT[number].pointers[j];
                 
-                if (strcmp(listToken[i], FAT[Pname].name) == 0){
+                if (strcmp(listToken[i], FAT[Pname].name) == 0){                    
                     aux_actual_dir[aux_adp_count] = FAT[Pname].index;
                     aux_adp_count++;
 
@@ -598,7 +598,13 @@ bool copy(char* newDir, char* item){
         
         if (strcmp(FAT[Pname].name, item) == 0){
             FAT[aux_actual_dir[aux_adp_count - 1]].pointers[FAT[aux_actual_dir[aux_adp_count - 1]].items] = FAT[Pname].index;
-            
+            FAT[aux_actual_dir[aux_adp_count - 1]].items++;
+
+            FAT[actualDir[adpCount - 1]].pointers[i] = FAT[actualDir[adpCount - 1]].pointers[FAT[actualDir[adpCount - 1]].items - 1];
+            FAT[actualDir[adpCount - 1]].items--;
+
+            isValid = true;
+            break;
         }
          
     }
