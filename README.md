@@ -1,3 +1,4 @@
+<!-- Este projeto pode ser encontrado no GitHub atráves deste link: https://github.com/hmarcuzzo/project_B_SO -->
 # project_B_SO
 ########### SHELL.C ##########
 
@@ -48,19 +49,21 @@ Funções normais do shell:
 No disco virtual:
 =================
 
-- cd <dir>
+Obs: Para entrar no disco virtual é necessário utilizar ```cd disco.dsc```
 
-- mkdir <dir>
+- cd \<dir>
+
+- mkdir \<dir>
 
 - rm <dir | arquivo>
 
-- cp <arquivo> .real
+- cp \<arquivo> .real
 
-- cp <arquivo> <arquivo> .virtual
+- cp \<arquivo> \<arquivo> .virtual
 
 - mv <dir | arquivo>
 
-- ls <dir>
+- ls \<dir>
 
 - pwd
 
