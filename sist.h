@@ -125,16 +125,13 @@ int getFreeBlock(){
 
 // retorna o index do arquivo passado
 int getFile(char* dir_path){
-    char* stack[100];
-    char** sp = stack;
-    char* token = strtok(dir_path, "/");
     char* last_dir;
-    while( token != NULL ) {
-        push(sp,token);
-
+    char* token = strtok(dir_path, "/");
+    last_dir = token;
+    while( token != NULL ){
+        last_dir = token;
         token = strtok(NULL, "/");
     }
-    last_dir = pop(sp);
 
     for (int i = 0; i < disk_info->blocks; i++){
         if((FAT[i].status == DIR || FAT[i].status == BUSY) && FAT[i].first){
@@ -143,6 +140,18 @@ int getFile(char* dir_path){
         }
     }
     return -1;
+}
+
+// retorna o nome do arquivo de acordo com o path
+char* getFileName(char* dir_path){
+    char* last_dir;
+    char* token = strtok(dir_path, "/");
+    last_dir = token;
+    while( token != NULL ){
+        last_dir = token;
+        token = strtok(NULL, "/");
+    }
+    return last_dir;
 }
 
 // printa os arquivos e diretórios contidos no block de diretório passado
@@ -180,47 +189,54 @@ void printDir(Block current_dir){
     }
 }
 
+// escreve um arquivo do sistema real para o disco simulado
 void writeInDisk(char* file_name, int dir){
+    // ponteiros de escrita e leitura
     FILE* read_ptr = fopen(file_name,"rb");
     FILE* write_ptr = fopen(DISK_NAME,"wb");
+
+    char* name = getFileName(file_name);
+
+    // pilha auxiliar
     int stack[10];
     int* sp = stack;
 
     fseek(read_ptr, 0, SEEK_END);
-    unsigned int file_size = ftell(read_ptr);
+    unsigned int file_size = ftell(read_ptr);       // variavel que contem o tamanho total do arquivo
     fseek(read_ptr, 0, SEEK_SET);
 
     long int loop_size_aux = file_size;
     int nblocks = 0;
     while(1){
-        loop_size_aux -= BLOCK_SIZE -1;
+        loop_size_aux -= BLOCK_SIZE -1;             // a cada iteração, decrementa o tamanho de um bloco
 
-        if(nblocks == 0){
+        if(nblocks == 0){                           // quando for o primeiro bloco
 
-            int block_index = getFreeBlock();
+            int block_index = getFreeBlock();       // recebe o indice do primeiro bloco livre
 
+            // define as caracteristicas do bloco
             FAT[block_index].status = BUSY;
-            FAT[block_index].name = file_name;
+            FAT[block_index].name = name;
             FAT[block_index].first = true;
             FAT[block_index].items = 1;
             FAT[dir].pointers[FAT[dir].items] = FAT[block_index].index;
             FAT[dir].items++;
 
-            if(loop_size_aux <0){
+            if(loop_size_aux <0){                   // caso for negativo na primeira iteração, o arquivo é menor que o tamanho de um bloco
                 FAT[block_index].size = file_size;
 
-                char buff[FAT[block_index].size];
-                    fread(&buff,FAT[block_index].size,1,read_ptr);
-                    fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
-                    fwrite(buff,FAT[block_index].size,1,write_ptr);
+                char buff[FAT[block_index].size];   // buffer com o tamanho do arquivo
+                    fread(&buff,FAT[block_index].size,1,read_ptr); // le o conteudo do arquivo
+                    fseek(write_ptr,FAT[block_index].begin,SEEK_SET); // posiciona o ponteiro no comeco do bloco
+                    fwrite(buff,FAT[block_index].size,1,write_ptr);    // escreve o conteudo do buffer no bloco
 
                 break;
             }
-            else{
-                FAT[block_index].size = BLOCK_SIZE -1;
-                FAT[block_index].next_block = getFreeBlock();
+            else{                               // caso for positivo, significa que o arquivo é maior que um bloco
+                FAT[block_index].size = BLOCK_SIZE -1; // escreve o tamnho de um bloco completo
+                FAT[block_index].next_block = getFreeBlock(); // recebe um bloco livre
 
-                push(sp,FAT[block_index].next_block);
+                push(sp,FAT[block_index].next_block);   // empilha o proximo bloco
                 nblocks++;
 
                 char buffa[FAT[block_index].size];
@@ -229,12 +245,12 @@ void writeInDisk(char* file_name, int dir){
                     fwrite(buffa,FAT[block_index].size,1,write_ptr);
             }
         }
-        else if(loop_size_aux > 0 && nblocks > 0){
+        else if(loop_size_aux > 0 && nblocks > 0){      // caso ainda houver conteudo no arquivo, e nao for o primeiro bloco
 
-            int block_index = pop(sp);
+            int block_index = pop(sp); // retira da pilha o bloco empilhado pelo bloco anterior
 
             FAT[block_index].status = BUSY;
-            FAT[block_index].name = file_name;
+            FAT[block_index].name = name;
             FAT[block_index].size = BLOCK_SIZE -1;
             FAT[block_index].first = false;
             FAT[block_index].items = 1;
@@ -249,13 +265,13 @@ void writeInDisk(char* file_name, int dir){
                 fwrite(buffb,FAT[block_index].size,1,write_ptr);
             
         }
-        else if(loop_size_aux < 0 && nblocks > 0){
+        else if(loop_size_aux < 0 && nblocks > 0){  // caso for negativo e nao for o primeiro bloco, significa que este é o ultimo bloco
 
             int block_index = pop(sp);
 
             FAT[block_index].status = BUSY;
-            FAT[block_index].name = file_name;
-            FAT[block_index].size = BLOCK_SIZE + loop_size_aux -1;
+            FAT[block_index].name = name;
+            FAT[block_index].size = BLOCK_SIZE + loop_size_aux -1; // define o tamanho restante para completar o tamanho total do arquivo
             FAT[block_index].first = false;
             FAT[block_index].items = 1;
 
@@ -273,37 +289,39 @@ void writeInDisk(char* file_name, int dir){
     fclose(write_ptr);
 }
 
+// le o arquivo escrito no disco simulado e grava no sistema real
 void readFromDisk(char* file_name, char* newFile){
+    // ponteiros para leitura e escrita
     FILE* read_ptr = fopen(DISK_NAME,"rb");
-    FILE* teste = fopen(newFile,"wb");
- 
+    FILE* write_ptr = fopen(newFile,"wb");
+    
+    // pilha auxiliar
     int stack[10];
     int* sp = stack;
 
-    int block_index = getFile(file_name);
+    int block_index = getFile(file_name);       // indice do bloco que contem o arquivo no disco simulado
 
     push(sp,-1);
-    push(sp,FAT[block_index].index);
+    push(sp,FAT[block_index].index);            // empilha o primeiro bloco
     int index;
     int a = 0;
     while (1){
         index = pop(sp);
-        if(index == -1) break;
+        if(index == -1) break;                          // quando nao houver um proximo bloco, para o laço
         
-        fseek(read_ptr,FAT[index].begin,SEEK_SET);
-        char b[FAT[index].size];
+        fseek(read_ptr,FAT[index].begin,SEEK_SET);      // posiciona o ponteiro no começo do bloco
+        char buff[FAT[index].size];                     // cria um buffer com o conteudo do bloco
 
-        fread(b,1,FAT[index].size,read_ptr);
+        fread(buff,1,FAT[index].size,read_ptr);         // le o bloco do disco simulado
 
-        fwrite(b,FAT[index].size,1,teste);
+        fwrite(buff,FAT[index].size,1,write_ptr);       // escreve no disco real
         
-        if(FAT[index].next_block != -1){
+        if(FAT[index].next_block != -1){                // caso houver um proximo bloco, empilha
             push(sp,FAT[index].next_block);
         }
-        a+=FAT[index].size+1;
     }
     fclose(read_ptr);
-    fclose(teste);
+    fclose(write_ptr);
     
 
 }

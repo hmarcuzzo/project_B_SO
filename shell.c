@@ -191,8 +191,8 @@ void execBuiltIn(int cmd,char **parsed_cmd)
                 pwd();                                                      // mostra o caminho do diretório atual
                 break;
             case FORMATV:
-                if(strcmp(parsed_cmd[2],"dsc")==0){
-                    startFileSystem();                                          // apaga todo o conteúdo do disco virtual
+                if(parsed_cmd[1][0] == 'd' && parsed_cmd[1][1] == 's' && parsed_cmd[1][2] == 'c'){
+                    startFileSystem();                                      // apaga todo o conteúdo do disco virtual
                 }
                 break;
             default:
@@ -276,9 +276,10 @@ int isBuiltIn(char **parsed_cmd)
     virtual_commands[8] = "format";
 
     if(virtual == 1){
-        for(int i=0; i < n_virtual - 1; i++){
-            if(strcmp(parsed_cmd[0],virtual_commands[i]) == 0) // Compara o comando passado com todos os internos
+        for(int i=0; i < n_virtual; i++){
+            if(strcmp(parsed_cmd[0],virtual_commands[i]) == 0){ // Compara o comando passado com todos os internos
                 return i+1; // Caso for igual, retorna o número corresponde àquele comando
+            }
         }
     }else{
         for(int i=0; i < n_builtin -1; i++)
@@ -287,7 +288,6 @@ int isBuiltIn(char **parsed_cmd)
                 return i+1; // Caso for igual, retorna o número corresponde à aquele comando
         }
     }
-
     // Compara o primeiro caractere do comando com '!' para verificar se é uma execução do histórico
     if((parsed_cmd[0])[0] == *(builtin_commands[5]))
         return NCMD;
