@@ -49,22 +49,24 @@ Funções normais do shell:
 No disco virtual:
 =================
 
-Obs: Para entrar no disco virtual é necessário utilizar ```cd disco.dsc```
+Obs: Para entrar no disco virtual é necessário utilizar ```cd disco.dsc``` e para sair, deve-se digitar ```exit```
 
-- cd \<dir>
+- cd \<dir> (vai para um diretório)
 
-- mkdir \<dir>
+- mkdir \<dir> (criar diretórios)
 
-- rm <dir | arquivo>
+- rm <dir | arquivo> (remove arquivos ou diretórios)
 
-- cp \<arquivo> .real
+- cp \<arquivo> .real (copiar arquivo do real para o virtual)
 
-- cp \<arquivo> \<arquivo> .virtual
+- cp \<arquivo> \<arquivo> .virtual (copiar arquivo do virtual para o real)
 
-- mv <dir | arquivo>
+- mv <dir | arquivo> (move arquivo ou pasta de diretório)
 
-- ls \<dir>
+- ls \<dir> (lista o conteúdo do diretorório)
 
-- pwd
+- pwd (mostra o caminho do diretório atual)
 
-- format dsc
+- format dsc (formatar o disco)
+
+- exit (sair do disco virtual)
