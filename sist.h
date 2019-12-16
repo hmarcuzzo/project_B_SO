@@ -2,15 +2,15 @@
 #define pop(sp) (*--(sp))
 
 
-#define DISK_NAME "disco.dsc"
+#define DISK_NAME "disco.dsc"       // nome do disco
 #define DISK_SIZE 10  * 1048576
-#define BLOCK_SIZE 4096
-#define MAX_POINTERS 300
+#define BLOCK_SIZE 4096             // tamanho do bloco
+#define MAX_POINTERS 300            // Número máximo de ponteiros em um único diretório
 
-unsigned int actualDir[50];
-unsigned int adpCount = 0;
+unsigned int actualDir[50];         // guarda o caminho do diretório atual
+unsigned int adpCount = 0;          // a posição valida em que se encontra o actualDir
 
-typedef enum {FREE = 0, BUSY, RESERVED, DIR, BAD} status;
+typedef enum {FREE = 0, BUSY, RESERVED, DIR, BAD} status;       // estados possíveis da FAT
 typedef enum { false, true } bool;
 
 typedef struct{
@@ -18,7 +18,7 @@ typedef struct{
     unsigned int block_size;
     unsigned int blocks;
     unsigned int root_dir;
-} SuperBlock;
+} SuperBlock;               // estrutura do Super Bloco
 
 SuperBlock* disk_info;
 
@@ -32,16 +32,18 @@ typedef struct{
     bool first;
     unsigned int next_block;
     unsigned int pointers[MAX_POINTERS];
-} Block;
+} Block;                // estrutura de um arquivo ou diretório
 
 Block* FAT;
 
+// reseta o disco com as configurações padrões iniciais
 void startFileSystem(){
 
     FILE* disk = fopen(DISK_NAME, "wb");
 
     unsigned char zero = 0;
 
+    // escreve as informações do SUper Bloco
     disk_info = malloc(sizeof(disk_info));
 
     disk_info->disk_size = DISK_SIZE;
@@ -55,12 +57,14 @@ void startFileSystem(){
     fseek(disk, 0, SEEK_SET);
     fwrite(&disk_info, sizeof(SuperBlock), 1, disk);
 
+    // escreve a FAT no disco virtual
     FAT = malloc(disk_info->blocks*sizeof(Block));
     
     for (int i = 0; i < disk_info->blocks; i++){
         fwrite(&FAT[i], sizeof(FAT[i]), 1, disk);
     }
 
+    // preencher as configurações da FAT padrão
     int begin_byte = ftell(disk) + 1;
     for (int i = 0; i < disk_info->blocks; i++){
         FAT[i].status = FREE;
@@ -74,7 +78,6 @@ void startFileSystem(){
 
     float fblocks = (float)(disk_info->blocks*sizeof(Block))/BLOCK_SIZE ;
     int blocks_for_fat = ceil(fblocks);
-    // printf("Blocks for fat: %ld\n",blocks_for_fat);
 
     for (int i = 0; i < blocks_for_fat; i++){
         FAT[i].status = RESERVED;
@@ -86,6 +89,7 @@ void startFileSystem(){
     FAT[blocks_for_fat].first = true;
     disk_info->root_dir = FAT[blocks_for_fat].begin; 
     
+    // iniciar o diretório padrão como o root
     actualDir[adpCount] = blocks_for_fat;
     adpCount++;
     
@@ -93,6 +97,7 @@ void startFileSystem(){
     fclose(disk);  
 }
 
+// retorna o primeiro bloco livre que encontrar
 int getFreeBlock(){
     for (int i = 0; i < disk_info->blocks; i++){
         if(FAT[i].status == FREE) 
@@ -101,6 +106,7 @@ int getFreeBlock(){
     return -1;
 }
 
+// retorna o index do arquivo passado
 int getFile(char* dir_path){
     char* stack[100];
     char** sp = stack;
@@ -109,11 +115,10 @@ int getFile(char* dir_path){
     while( token != NULL ) {
         push(sp,token);
 
-    // printf("%s\n",token);
         token = strtok(NULL, "/");
     }
     last_dir = pop(sp);
-    // printf("%s\n",last_dir);
+
     for (int i = 0; i < disk_info->blocks; i++){
         if((FAT[i].status == DIR || FAT[i].status == BUSY) && FAT[i].first){
             if(!strcmp(last_dir,FAT[i].name))
@@ -123,6 +128,7 @@ int getFile(char* dir_path){
     return -1;
 }
 
+// printa os arquivos e diretórios contidos no block de diretório passado
 void printDir(Block current_dir){
     Block p;
     
@@ -157,7 +163,6 @@ void printDir(Block current_dir){
     }
 }
 
-
 void writeInDisk(char* file_name, int dir){
     FILE* read_ptr = fopen(file_name,"rb");
     FILE* write_ptr = fopen(DISK_NAME,"wb");
@@ -184,8 +189,6 @@ void writeInDisk(char* file_name, int dir){
             FAT[dir].pointers[FAT[dir].items] = FAT[block_index].index;
             FAT[dir].items++;
 
-            // printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
-
             if(loop_size_aux <0){
                 FAT[block_index].size = file_size;
 
@@ -194,7 +197,6 @@ void writeInDisk(char* file_name, int dir){
                     fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                     fwrite(buff,FAT[block_index].size,1,write_ptr);
 
-                // printf("E tamanho: %d\n",FAT[block_index].size);
                 break;
             }
             else{
@@ -208,15 +210,6 @@ void writeInDisk(char* file_name, int dir){
                     fread(&buffa,FAT[block_index].size,1,read_ptr);
                     fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                     fwrite(buffa,FAT[block_index].size,1,write_ptr);
-
-                // printf("E tamanho: %d\n",FAT[block_index].size);
-                // printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
-                // printf("BUFFER\n");
-                // for (int i = 0; i < FAT[block_index].size ; i++)
-                // {
-                //     printf("%c",buffa[i]);
-                // }
-                // printf("\n");
             }
         }
         else if(loop_size_aux > 0 && nblocks > 0){
@@ -237,16 +230,6 @@ void writeInDisk(char* file_name, int dir){
                 fread(&buffb,FAT[block_index].size,1,read_ptr);
                 fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                 fwrite(buffb,FAT[block_index].size,1,write_ptr);
-
-            // printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
-            // printf("E tamanho: %d\n",FAT[block_index].size);
-            // printf("O proximo bloco é: %d\n ",FAT[block_index].next_block);
-            // printf("BUFFER\n");
-            // for (int i = 0; i < FAT[block_index].size ; i++)
-            // {
-            //     printf("%c",buffb[i]);
-            // }
-            // printf("\n");
             
         }
         else if(loop_size_aux < 0 && nblocks > 0){
@@ -263,15 +246,6 @@ void writeInDisk(char* file_name, int dir){
                 fread(&buffc,FAT[block_index].size,1,read_ptr);
                 fseek(write_ptr,FAT[block_index].begin,SEEK_SET);
                 fwrite(buffc,FAT[block_index].size,1,write_ptr);
-
-            // printf("%d - Entrei aqui com índice: %d\n",nblocks,block_index);
-            // printf("E tamanho: %d\n",FAT[block_index].size);
-            // printf("BUFFER\n");
-            // for (int i = 0; i < FAT[block_index].size ; i++)
-            // {
-            //     printf("%c",buffc[i]);
-            // }
-            // printf("\n");
             break;
         }
 
@@ -298,19 +272,11 @@ void readFromDisk(char* file_name, char* newFile){
     while (1){
         index = pop(sp);
         if(index == -1) break;
-        // printf("Indice: %d\n",index);
         
         fseek(read_ptr,FAT[index].begin,SEEK_SET);
-        // printf("\n\nVOU LER: %ld\n\n",ftell(read_ptr));
         char b[FAT[index].size];
 
         fread(b,1,FAT[index].size,read_ptr);
-        // printf("\n\nLI: %ld\n\n",ftell(read_ptr));
-
-        // for (int i = 0; i< FAT[index].size ; i++){
-        //     printf("%c",b[i]);
-        // }
-        // printf("\n");
 
         fwrite(b,FAT[index].size,1,teste);
         
@@ -319,22 +285,22 @@ void readFromDisk(char* file_name, char* newFile){
         }
         a+=FAT[index].size+1;
     }
-    // printf("tamanho: %ld\n",ftell(teste));
     fclose(read_ptr);
     fclose(teste);
     
 
 }
 
+// cria o diretório (new_dir) no local passado por parâmetro (dir)
 bool mkdir(char* new_dir, char* dir){
 
     FILE* write_ptr = fopen(DISK_NAME,"wb");
     int destination_dir;
     Block* p;
 
-    int new_dir_block = getFreeBlock();
-    printf("New dir: %d\n",new_dir_block);
+    int new_dir_block = getFreeBlock();         // procura o index do primeiro bloco livre
 
+    // coloca as informações necessárias do novo diretório na sua FAT
     FAT[new_dir_block].status = DIR;
     FAT[new_dir_block].name = new_dir;
     
@@ -342,14 +308,12 @@ bool mkdir(char* new_dir, char* dir){
     if (dir != NULL){
         char str[10000];
         strcpy(str, dir);
-        destination_dir = getFile(str);
+        destination_dir = getFile(str);     // pega o index do diretório onde se deseja criar o novo diretório
     }
     else{
         destination_dir = actualDir[(adpCount - 1)];
     }
 
-    
-    // printf("destination_dir: %d\n", destination_dir);
     // if(FAT[destination_dir].items == 0){
         // printf("Entrei\n");
         // fseek(write_ptr,FAT[destination_dir].begin,SEEK_SET);
@@ -365,10 +329,10 @@ bool mkdir(char* new_dir, char* dir){
     // }
     // printf("TERMINEI AQUI: %ld\n\n",ftell(write_ptr));
 
-    FAT[destination_dir].pointers[FAT[destination_dir].items] = new_dir_block;
-    FAT[destination_dir].items++;
+
+    FAT[destination_dir].pointers[FAT[destination_dir].items] = new_dir_block;          // adiciona o index do novo diretório no array de ponteiro de items do diretório onde foi criado
+    FAT[destination_dir].items++;                                                       // aumenta a quantidade de itens
     
-    printf("destination_dir: %d\n", destination_dir);
 
     fclose(write_ptr);
 
@@ -376,6 +340,7 @@ bool mkdir(char* new_dir, char* dir){
 
 }
 
+// printa o caminho do diretório atual
 void pwd(){
 
     printf("/");
@@ -388,6 +353,7 @@ void pwd(){
     printf("\n");
 }
 
+// função que simula o cd em um shell
 bool cd(char* str){
     int len = 0;
     char listToken[1000][1000];
@@ -396,18 +362,19 @@ bool cd(char* str){
     unsigned int aux_actual_dir[50];
     unsigned int aux_adp_count = 0;
 
-    if (str[0] == '/'){
+    if (str[0] == '/'){     // se o primeiro caracter for "/" significa que deve-se começar pelo root
         flag = 1;
         aux_actual_dir[aux_adp_count] = actualDir[aux_adp_count];
         aux_adp_count++;
     }
-    else{
+    else{                   // caso contrário começa pelo diretório atual
         for (int i = 0; i < adpCount; i++){
             aux_actual_dir[i] = actualDir[i];
         }
         aux_adp_count = adpCount;
     }
 
+    // função similar a um split, criando um array de strings separadas pelo caracter "/"
     char* token = strtok(str, "/");
 
     while (token != NULL){
@@ -418,11 +385,11 @@ bool cd(char* str){
     }
 
     if (flag == 1){
-        if (len == 0){
+        if (len == 0){      // se o primeiro caracter for "/" e o tamanho for 0, significa que quer ir para o root
             adpCount = 1;
             return true;
         }
-        else if (strcmp(listToken[0], "~") != 0){
+        else if (strcmp(listToken[0], "~") != 0){   // se o primeiro caracter for "/" e o segundo não for "~", o diretório não existe
             printf("Arquivo ou diretório inexistente!\n");
             return false;
         }
@@ -430,15 +397,16 @@ bool cd(char* str){
     }
 
     for (int i = flag; i < len; i++){
-        if (strcmp(listToken[i], "..") == 0){
+        if (strcmp(listToken[i], "..") == 0){       // compara se é "..", caso for volta para o diretório anterior
             if(aux_adp_count > 1){
                 aux_adp_count--;
             }
         }
-        else{
+        else{ // se não for ".." só pode ser um diretório
 
             bool isValid;
 
+            // compara se o nome do diretório passado existe no diretório atual, comparando com todos os items do diretório atual
             for (int j = 0; j < FAT[aux_actual_dir[aux_adp_count - 1]].items; j++){
                 int number = aux_actual_dir[aux_adp_count - 1];
                 int Pname = FAT[number].pointers[j];
@@ -454,6 +422,7 @@ bool cd(char* str){
                 
             }
             
+            // se não existir retorna "false"
             if (isValid == false){
                 printf("Arquivo ou diretório inexistente!\n");
                 return false;
@@ -463,44 +432,45 @@ bool cd(char* str){
         
     }
     
-
+    // se existir copia os auxiliares para as variáveis global e retorna "true"
     for (int i = 0; i < aux_adp_count; i++){
-        // printf("aux_actual_dir[i]: %d\n", aux_actual_dir[i]);
         actualDir[i] = aux_actual_dir[i];
     }
     adpCount = aux_adp_count;
     return true;
 }
 
+// remove arquivo ou diretório
 bool removeItem(char* str, int dir){
 
     bool isValid;
 
+    // compara o nome passado se existe nos items do diretório passado
     for (int j = 0; j < FAT[dir].items; j++){
         int Pname = FAT[dir].pointers[j];
         isValid = false;
         
-        if (strcmp(str, FAT[Pname].name) == 0){
+        if (strcmp(str, FAT[Pname].name) == 0){ // se existe compara seus status
             isValid = true;
             
-            if (FAT[Pname].status == RESERVED){
+            if (FAT[Pname].status == RESERVED){ // se for reservado não pode fazer nada
                 printf("Arquivo ou diretório reservado, não é possível de ser apagado!\n");
                 return false;
             }  
             else if (FAT[Pname].status == BUSY || FAT[Pname].status == DIR){
 
-                if (FAT[Pname].status == DIR){
+                if (FAT[Pname].status == DIR){      // se for diretório começa recursivamente a excluir todos os itens do diretório passado, seja outros diretórios ou arquivos
                     for (int i = 0; i < FAT[Pname].items; i++){
                         removeItem(FAT[FAT[Pname].pointers[i]].name, Pname);
                     }
                 }
                 
                 int auxPointer = Pname;
-                FAT[dir].pointers[j] = FAT[dir].pointers[FAT[dir].items - 1];
+                FAT[dir].pointers[j] = FAT[dir].pointers[FAT[dir].items - 1];   // copia o último item para a posição onde um item foi excluido
                 
-                do{
-                    FAT[auxPointer].status = FREE;
-                    auxPointer = FAT[auxPointer].next_block;
+                do{ // seta os bloco onde foi excluido como FREE
+                    FAT[auxPointer].status = FREE;                              
+                    auxPointer = FAT[auxPointer].next_block;                    
                 } while (auxPointer != -1);      
             }
             else
@@ -516,13 +486,15 @@ bool removeItem(char* str, int dir){
         return false;
     }
     else{
-        FAT[dir].items--;
+        FAT[dir].items--;       // diminui a quantidade de itens do diretório
         return true;
     }
 
 }
 
+// move diretórios ou arquivos para o destino, ambos são passado por parâmetro
 bool move(char* newDir, char* item){
+    // 1°a Parte: procura o diretório (newDir) onde o item será movido
     int len = 0;
     char listToken[1000][1000];
     int flag = 0;
@@ -590,16 +562,18 @@ bool move(char* newDir, char* item){
         } 
     }
 
-
+    // 2°a Parte: move o index do arquivo/diretório para o novo diretório e remove do diretório antigo
     isValid = false;
     for (int i = 0; i < FAT[actualDir[adpCount - 1]].items; i++){
         int number = actualDir[adpCount - 1];
         int Pname = FAT[number].pointers[i];
         
         if (strcmp(FAT[Pname].name, item) == 0){
+            // adiciona o index do arquivo/diretório para o novo diretório
             FAT[aux_actual_dir[aux_adp_count - 1]].pointers[FAT[aux_actual_dir[aux_adp_count - 1]].items] = FAT[Pname].index;
             FAT[aux_actual_dir[aux_adp_count - 1]].items++;
 
+            // remove o index do arquivo/diretório do diretório antigo
             FAT[actualDir[adpCount - 1]].pointers[i] = FAT[actualDir[adpCount - 1]].pointers[FAT[actualDir[adpCount - 1]].items - 1];
             FAT[actualDir[adpCount - 1]].items--;
 
@@ -615,4 +589,4 @@ bool move(char* newDir, char* item){
     }
     
     return true;
-} 
+}
