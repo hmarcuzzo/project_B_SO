@@ -20,7 +20,7 @@
 
 
 #define DISK_NAME "disco.dsc"       // nome do disco
-#define DISK_SIZE 10  * 1048576
+#define DISK_SIZE 10  * 1048576     // o tamanho total do disco
 #define BLOCK_SIZE 4096             // tamanho do bloco
 #define MAX_POINTERS 300            // Número máximo de ponteiros em um único diretório
 
