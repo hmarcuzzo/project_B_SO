@@ -160,32 +160,41 @@ void execBuiltIn(int cmd,char **parsed_cmd)
         switch (cmd)
         {
             case EXITV:
-                virtual = 0;
+                virtual = 0;                                                // sai das funções do disco virtual
                 break;
             case CDV:
-                cd(parsed_cmd[1]);
+                cd(parsed_cmd[1]);                                          // entra em uma pasta no disco virtual
                 break;
             case MKDIRV:
-                mkdir(parsed_cmd[1],parsed_cmd[2]);
+                mkdir(parsed_cmd[1],parsed_cmd[2]);                         // cria uma pasta no disco virtual
                 break;
             case RMV:
-                removeItem(parsed_cmd[1], actualDir[adpCount - 1]);
+                removeItem(parsed_cmd[1], actualDir[adpCount - 1]);         // apaga um item um item do disco virtual
                 break;
             case CPV:
-                
+                if(strcmp(parsed_cmd[2],".real")==0){                       // copia um arquivo do disco real para o virtual
+                    writeInDisk(parsed_cmd[1], actualDir[adpCount - 1]);
+                }else
+                if(strcmp(parsed_cmd[3],".virtual")==0){                    // copia um arquivo do disco virtual para o real
+                    readFromDisk(parsed_cmd[1], parsed_cmd[2]);
+                }
                 break;
             case MVV:
+                move(parsed_cmd[2], parsed_cmd[1]);                         // move um arquivo dentro do disco virtual
                 break;
             case LSV:
                 if(parsed_cmd[1] == NULL){
-                    printDir(FAT[actualDir[adpCount - 1]]);
+                    printDir(FAT[actualDir[adpCount - 1]]);                 // mostra todos os arquivos do diretório atual no disco virtual
                 }
                 break;
             case PWDV:
-                pwd();
+                pwd();                                                      // mostra o caminho do diretório atual
                 break;
             case FORMATV:
+                startFileSystem();                                          // apaga todo o conteúdo do disco virtual
                 break;
+            default:
+                printf("Command not found.");
         }
     }else{
         switch (cmd)

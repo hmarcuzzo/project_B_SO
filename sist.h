@@ -282,9 +282,9 @@ void writeInDisk(char* file_name, int dir){
     fclose(write_ptr);
 }
 
-void readFromDisk(char* file_name){
+void readFromDisk(char* file_name, char* newFile){
     FILE* read_ptr = fopen(DISK_NAME,"rb");
-    FILE* teste = fopen("novoteste1.txt","wb");
+    FILE* teste = fopen(newFile,"wb");
  
     int stack[10];
     int* sp = stack;
