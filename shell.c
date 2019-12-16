@@ -168,7 +168,7 @@ void execBuiltIn(int cmd,char **parsed_cmd)
             case MKDIRV:
                 mkdir(parsed_cmd[1],parsed_cmd[2]);                         // cria uma pasta no disco virtual
                 break;
-            case RMV:
+            case RMV: 
                 removeItem(parsed_cmd[1], actualDir[adpCount - 1]);         // apaga um item um item do disco virtual
                 break;
             case CPV:

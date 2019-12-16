@@ -143,7 +143,7 @@ int getFile(char* dir_path){
 }
 
 // retorna o nome do arquivo de acordo com o path
-char* getFileName(char* dir_path){
+char* getFileName(char* dir_path){ 
     char* last_dir;
     char* token = strtok(dir_path, "/");
     last_dir = token;
