@@ -23,7 +23,7 @@
 #include<sys/wait.h> 
 #include<readline/readline.h>
 #include<math.h>
-#include"../sist.h"
+#include"sist.h"
 
 #define MAXLINE 80 // Define o tamanho máximo da linha de comando
 #define MAXARGS 10 // Define o número máximo de argumentos lidos por linha de comando
@@ -191,7 +191,9 @@ void execBuiltIn(int cmd,char **parsed_cmd)
                 pwd();                                                      // mostra o caminho do diretório atual
                 break;
             case FORMATV:
-                startFileSystem();                                          // apaga todo o conteúdo do disco virtual
+                if(strcmp(parsed_cmd[2],"dsc")==0){
+                    startFileSystem();                                          // apaga todo o conteúdo do disco virtual
+                }
                 break;
             default:
                 printf("Command not found.");
