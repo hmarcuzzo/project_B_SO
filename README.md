@@ -57,9 +57,9 @@ Obs: Para entrar no disco virtual é necessário utilizar ```cd disco.dsc``` e p
 
 - rm <dir | arquivo> (remove arquivos ou diretórios)
 
-- cp \<arquivo> .real (copiar arquivo do real para o virtual)
+- cp \<arquivo> .real (copiar arquivo do real para o virtual, podendo ser só o arquivo ou o caminho com o nome do arquivo no final ex.: ```cp caminho/arquivo.txt .real```)
 
-- cp \<arquivo> \<arquivo> .virtual (copiar arquivo do virtual para o real)
+- cp \<arquivo> \<arquivo> .virtual (copiar arquivo do virtual para o real, sendo os parâmetros: nome no arquivo no virtual, e o caminho com o nome do arquivo no final ex.: ```cp arquivo.txt caminho/arquivo2.txt .virtual```)
 
 - mv <dir | arquivo> (move arquivo ou pasta de diretório)
 
