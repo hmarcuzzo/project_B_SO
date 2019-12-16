@@ -5,16 +5,14 @@
 *                                                                    *
 *       Este programa consiste em uma interface shell capaz de       *
 *       executar processos por linha de comando. Também possui       *
-*       as funcionalidades de histórico e execução em background.    *  
-*                                                                    *
-*                                                                    *
+*       as funcionalidades de histórico e execução em background.    *
 *                                                                    *
 * AUTOR :    Matheus Henrique Batistela                              *
 *                                                                    *
-* DATA DE CRIAÇÃO :    11/09/2019                                    *   
+* DATA DE CRIAÇÃO :    11/09/2019                                    *
 *                                                                    *
 * MODIFICAÇÕES :       20/09/2019                                    *
-*                                                                    * 
+*                                                                    *
 **********************************************************************/
 
 #include<stdio.h> 
@@ -24,18 +22,24 @@
 #include<sys/types.h> 
 #include<sys/wait.h> 
 #include<readline/readline.h>
+#include<math.h>
+#include"../sist.h"
 
 #define MAXLINE 80 // Define o tamanho máximo da linha de comando
 #define MAXARGS 10 // Define o número máximo de argumentos lidos por linha de comando
 #define MAXHISTORY 10 // Define o máximo de comandos armazenados no histórico
-
-
 
 typedef enum 
 {
     EXIT=1,CD,HELP,HISTORY,LASTCMD,NCMD
 }builtInCmds;
 
+typedef enum
+{
+    EXITV=1, CDV, MKDIRV, RMV, CPV, MVV, LSV, PWDV, FORMATV
+}virtualCmds;
+
+int virtual = 0;
 
 char history[MAXHISTORY][MAXLINE]; // Vetor de strings que armazena uma linha de comando em cada índice
 int history_counter; // Contador do número de comandos salvos no histórico
@@ -62,7 +66,6 @@ int parseArg(char* cmdline, char** parsed)
         if (parsed[i] == NULL) 
             return i; 
     }
-
 }
 
 // Adiciona no vetor de histórico os comandos juntos com seus argumentos digitados na linha de comando. Esta função não
@@ -124,18 +127,17 @@ int isBackground(char* last_parse)
         memmove(&last_parse[index],&last_parse[index+1],strlen(last_parse) - index); // Remove a flag para uma exec coreta
         return 1;
     }
-
     return 0;
 }
 
 // Esta função processa a linha e a analisa, decidindo o tipo de execução
 void execLine(char *cmdline)
 {
-    
     char *parsed_cmd[MAXARGS]; // Armazena , separadamente, o comando e seus argumentos
     int n_parse;
     if(n_parse = parseArg(cmdline,parsed_cmd)) // Verifica se o parse foi efetuado com sucesso, caso sim, guarda o resultado no segundo parâmetro
-    {   
+    {
+        
         int builtin_cmd = isBuiltIn(parsed_cmd);
         int background = isBackground(parsed_cmd[n_parse-1]);
 
@@ -154,48 +156,85 @@ void execLine(char *cmdline)
 void execBuiltIn(int cmd,char **parsed_cmd)
 {
     int index;
-    switch (cmd)
-    {
-    case EXIT:
-        exit(0);
-        break;
-
-    case CD:
-        if (chdir(parsed_cmd[1]) == -1) // Utiliza-se da função chdir() que acessa o direório passado por argumento
-            printf(" %s : Diretório inexistente\n", parsed_cmd[1]);
-        break;
-
-    case HELP: 
-        printf("\n1. Digite o comando desejado e tecle enter para executá-lo\n\n");
-        printf("2. Use o comando 'history' para ver o histórico de comandos\n\n");
-        printf("3. Use o comando '!!' para executar o último comando\n\n");
-        printf("4. Use o comando '!n' para executar o último n comando desejado\n\n");
-        printf("5. Use '&' no final do comando para executá-lo em background\n\n");
-        break;
-
-    case HISTORY:
-        printf("\n");
-        int cmd_number = history_counter +1;
-        for(int i=0; i < history_counter ; i++ )
+    if(virtual == 1){
+        switch (cmd)
         {
-            cmd_number--;
-            printf("%d %s\n",cmd_number,history[i]);
+            case EXITV:
+                virtual = 0;
+                break;
+            case CDV:
+                cd(parsed_cmd[1]);
+                break;
+            case MKDIRV:
+                mkdir(parsed_cmd[1],parsed_cmd[2]);
+                break;
+            case RMV:
+                removeItem(parsed_cmd[1], actualDir[adpCount - 1]);
+                break;
+            case CPV:
+                
+                break;
+            case MVV:
+                break;
+            case LSV:
+                if(parsed_cmd[1] == NULL){
+                    printDir(FAT[actualDir[adpCount - 1]]);
+                }
+                break;
+            case PWDV:
+                pwd();
+                break;
+            case FORMATV:
+                break;
         }
-        printf("\n");
-        break;
+    }else{
+        switch (cmd)
+        {
+            case EXIT:
+                exit(0);
+                break;
+                
+            case CD:
+                if (parsed_cmd[1][strlen(parsed_cmd[1]) - 1] == 'c' && parsed_cmd[1][strlen(parsed_cmd[1]) - 2] == 's' && parsed_cmd[1][strlen(parsed_cmd[1]) - 3] == 'd'){
+                    virtual = 1;
+                    startFileSystem();
+                    break;
+                }
+                if (chdir(parsed_cmd[1]) == -1) // Utiliza-se da função chdir() que acessa o direório passado por argumento
+                    printf(" %s : Diretório inexistente\n", parsed_cmd[1]);
+                    break;
+                
+            case HELP: 
+                printf("\n1. Digite o comando desejado e tecle enter para executá-lo\n\n");
+                printf("2. Use o comando 'history' para ver o histórico de comandos\n\n");
+                printf("3. Use o comando '!!' para executar o último comando\n\n");
+                printf("4. Use o comando '!n' para executar o último n comando desejado\n\n");
+                printf("5. Use '&' no final do comando para executá-lo em background\n\n");
+                break;
 
-    case LASTCMD:
-        execLine(history[history_counter-1]); // Executa a última linha armazenada no histórico
-        break;
+            case HISTORY:
+                printf("\n");
+                int cmd_number = history_counter +1;
+                for(int i=0; i < history_counter ; i++ ){
+                    cmd_number--;
+                    printf("%d %s\n",cmd_number,history[i]);
+                }
+                printf("\n");
+                break;
 
-    case NCMD:
-        index = (parsed_cmd[0])[1] - '0'; // Converte e armazena a segunda posição do arg, a qual, contém o número do proc a ser executado
-        index = history_counter - index; // Subtrai do contador do histórico para descobrir o índice correto
-        execLine(history[index]); // Executa a linha correspondente à posição escollhida
-        break;
+            case LASTCMD:
+                execLine(history[history_counter-1]); // Executa a última linha armazenada no histórico
+                break;
+
+            case NCMD:
+                index = (parsed_cmd[0])[1] - '0'; // Converte e armazena a segunda posição do arg, a qual, contém o número do proc a ser executado
+                index = history_counter - index; // Subtrai do contador do histórico para descobrir o índice correto
+                execLine(history[index]); // Executa a linha correspondente à posição escollhida
+                break;
     
-    default:
-        break;
+            default:
+                break;
+        }
     }
 }
 
@@ -212,11 +251,30 @@ int isBuiltIn(char **parsed_cmd)
     builtin_commands[3] = "history";
     builtin_commands[4] = "!!";
     builtin_commands[5] = "!";
+    
+    int n_virtual = 9;
+    char *virtual_commands[n_virtual];
+    virtual_commands[0] = "exit";
+    virtual_commands[1] = "cd";
+    virtual_commands[2] = "mkdir";
+    virtual_commands[3] = "rm";
+    virtual_commands[4] = "cp";
+    virtual_commands[5] = "mv";
+    virtual_commands[6] = "ls";
+    virtual_commands[7] = "pwd";
+    virtual_commands[8] = "format";
 
-    for(int i=0; i < n_builtin -1; i++)
-    {
-        if(strcmp(parsed_cmd[0],builtin_commands[i]) == 0) // Compara o comando passado com todos os internos
-            return i+1; // Caso for igual, retorna o número corresponde à aquele comando
+    if(virtual == 1){
+        for(int i=0; i < n_virtual - 1; i++){
+            if(strcmp(parsed_cmd[0],virtual_commands[i]) == 0) // Compara o comando passado com todos os internos
+                return i+1; // Caso for igual, retorna o número corresponde àquele comando
+        }
+    }else{
+        for(int i=0; i < n_builtin -1; i++)
+        {
+            if(strcmp(parsed_cmd[0],builtin_commands[i]) == 0) // Compara o comando passado com todos os internos
+                return i+1; // Caso for igual, retorna o número corresponde à aquele comando
+        }
     }
 
     // Compara o primeiro caractere do comando com '!' para verificar se é uma execução do histórico
@@ -224,7 +282,6 @@ int isBuiltIn(char **parsed_cmd)
         return NCMD;
     else
         return 0;
-
 }
 
 
@@ -232,25 +289,38 @@ int isBuiltIn(char **parsed_cmd)
 int main(int argc, char const *argv[])
 {
     char cmdline[MAXLINE]; // Armazena a linha de comando (Input do usuário)
-     
-
+    
     while (1)
     {
-        char host[1204] = "";
-        gethostname(host, sizeof(host)); // Capta o nome do host e armazena na variável "host"
-        printf("%s@%s >>", getenv("LOGNAME"), host); // Printa o hostname, juntamente com o nome da máquina
-
-        char *buffer;
-        buffer = readline(NULL); // Capta o input do usuário
+        if(virtual == 1){
+            printf("Virtual disk >> ");
+            
+            char *buffer;
+            buffer = readline(NULL); // Capta o input do usuário
  
-        if(strlen(buffer) != 0)
-        {
-            strcpy(cmdline,buffer); // Armazena o conteúdo do buffer
-            execLine(cmdline); // Executa o comando
-            addHistory(cmdline); // Adiciona o comando no histórico
+            if(strlen(buffer) != 0)
+            {
+                strcpy(cmdline,buffer); // Armazena o conteúdo do buffer
+                execLine(cmdline); // Executa o comando
+                addHistory(cmdline); // Adiciona o comando no histórico
+            }    
+        }else{
+            char host[1024] = "";
+            char cwd[1024];
+            getcwd(cwd, sizeof(cwd));
+            gethostname(host, sizeof(host)); // Capta o nome do host e armazena na variável "host"
+            printf("%s@%s:%s$ ", getenv("LOGNAME"), host, cwd); // Printa o hostname, juntamente com o nome da máquina
+
+            char *buffer;
+            buffer = readline(NULL); // Capta o input do usuário
+ 
+            if(strlen(buffer) != 0)
+            {
+                strcpy(cmdline,buffer); // Armazena o conteúdo do buffer
+                execLine(cmdline); // Executa o comando
+                addHistory(cmdline); // Adiciona o comando no histórico
+            }    
         }
-
     }
-
     return 0;
 }

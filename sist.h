@@ -74,7 +74,7 @@ void startFileSystem(){
 
     float fblocks = (float)(disk_info->blocks*sizeof(Block))/BLOCK_SIZE ;
     int blocks_for_fat = ceil(fblocks);
-    printf("Blocks for fat: %ld\n",blocks_for_fat);
+    // printf("Blocks for fat: %ld\n",blocks_for_fat);
 
     for (int i = 0; i < blocks_for_fat; i++){
         FAT[i].status = RESERVED;
@@ -125,7 +125,7 @@ int getFile(char* dir_path){
 
 void printDir(Block current_dir){
     Block p;
-
+    
     if(current_dir.items == 0)
         printf("Vazio\n");
     else{
