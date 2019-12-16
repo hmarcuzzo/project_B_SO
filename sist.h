@@ -1,3 +1,20 @@
+/*********************************************************************
+* NOME DO ARQUIVO :        sist.h                                    *
+*                                                                    *
+* DESCRIÇÂO :                                                        *
+*                                                                    *
+*       Este programa consiste em executar funções de um shell em    *
+*           um disco virtual, integrando este disco com o disco      *
+*           real.                                                    *
+*                                                                    *
+* AUTOR :    Enzo Italiano, Henrique Marcuzzo e Matheus Batistela    *
+*                                                                    *
+* DATA DE CRIAÇÃO :    12/12/2019                                    *
+*                                                                    *
+* MODIFICAÇÕES :       15/12/2019                                    *
+*                                                                    *
+**********************************************************************/
+
 #define push(sp, n) (*((sp)++) = (n))
 #define pop(sp) (*--(sp))
 
